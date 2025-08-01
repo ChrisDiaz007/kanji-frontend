@@ -19,6 +19,16 @@ const Camera: React.FC<CameraProps> = ({ onKanjiDetected, onError, onLoading }) 
 
   const startCamera = async () => {
     try {
+      console.log('Starting camera...');
+      console.log('User agent:', navigator.userAgent);
+      console.log('HTTPS:', window.location.protocol === 'https:');
+
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        onError("Camera not supported in this browser. Please use file upload instead.");
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment', // Use back camera on mobile
@@ -27,12 +37,34 @@ const Camera: React.FC<CameraProps> = ({ onKanjiDetected, onError, onLoading }) 
         }
       });
 
+      console.log('Camera stream obtained:', stream);
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setIsCameraOpen(true);
+        console.log('Camera opened successfully');
       }
     } catch (err) {
-      onError("Camera access denied. Please allow camera permissions or use file upload.");
+      console.error('Camera error:', err);
+
+      // Provide more specific error messages
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError') {
+          onError("Camera access denied. Please allow camera permissions in your browser settings or use file upload.");
+        } else if (err.name === 'NotFoundError') {
+          onError("No camera found. Please use file upload instead.");
+        } else if (err.name === 'NotSupportedError') {
+          onError("Camera not supported. Please use file upload instead.");
+        } else if (err.name === 'NotReadableError') {
+          onError("Camera is in use by another application. Please close other camera apps or use file upload.");
+        } else if (err.name === 'OverconstrainedError') {
+          onError("Camera doesn't support the requested settings. Please use file upload.");
+        } else {
+          onError(`Camera error: ${err.message}. Please use file upload instead.`);
+        }
+      } else {
+        onError("Camera access failed. Please use file upload instead.");
+      }
     }
   };
 
@@ -180,27 +212,37 @@ const Camera: React.FC<CameraProps> = ({ onKanjiDetected, onError, onLoading }) 
     <div className="space-y-4">
       {/* Camera Controls */}
       {!isCameraOpen && !capturedImage && (
-        <div className="flex flex-col sm:flex-row gap-4">
-          <button
-            onClick={startCamera}
-            className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 font-semibold flex items-center justify-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Open Camera
-          </button>
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button
+              onClick={startCamera}
+              className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 font-semibold flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Open Camera
+            </button>
 
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-semibold flex items-center justify-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            Upload Image
-          </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-semibold flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              Upload Image
+            </button>
+          </div>
+
+          {/* Mobile-specific tips */}
+          <div className="text-center text-sm text-gray-500">
+            <p>📱 <strong>Mobile Tip:</strong> If camera doesn't work, try the "Upload Image" option!</p>
+            {window.location.protocol === 'http:' && (
+              <p className="text-orange-600 mt-1">⚠️ Camera requires HTTPS. Use file upload for now.</p>
+            )}
+          </div>
         </div>
       )}
 
