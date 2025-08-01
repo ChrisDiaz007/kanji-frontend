@@ -41,8 +41,18 @@ const Camera: React.FC<CameraProps> = ({ onKanjiDetected, onError, onLoading }) 
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        setIsCameraOpen(true);
-        console.log('Camera opened successfully');
+
+        // Wait for video to be ready before showing camera
+        videoRef.current.onloadedmetadata = () => {
+          console.log('Video metadata loaded');
+          setIsCameraOpen(true);
+          console.log('Camera opened successfully');
+        };
+
+        videoRef.current.onerror = (e) => {
+          console.error('Video error:', e);
+          onError("Failed to load camera video. Please try again or use file upload.");
+        };
       }
     } catch (err) {
       console.error('Camera error:', err);
@@ -265,7 +275,9 @@ const Camera: React.FC<CameraProps> = ({ onKanjiDetected, onError, onLoading }) 
             ref={videoRef}
             autoPlay
             playsInline
+            muted
             className="w-full rounded-lg shadow-lg"
+            style={{ transform: 'scaleX(-1)' }} // Mirror the camera for better UX
           />
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-4">
             <button
