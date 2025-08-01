@@ -17,7 +17,7 @@ const Camera: React.FC<CameraProps> = ({ onKanjiDetected, onError, onLoading }) 
 
   const API_BASE_URL = "https://kanji-api-09daa91fbd9b.herokuapp.com/api/v1";
 
-  const startCamera = async () => {
+    const startCamera = async () => {
     try {
       console.log('Starting camera...');
       console.log('User agent:', navigator.userAgent);
@@ -29,17 +29,34 @@ const Camera: React.FC<CameraProps> = ({ onKanjiDetected, onError, onLoading }) 
         return;
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // iOS Safari specific check
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+
+      if (isIOS && isSafari) {
+        console.log('iOS Safari detected - using specific constraints');
+      }
+
+      // iOS Safari specific constraints
+      const videoConstraints = isIOS && isSafari ? {
         video: {
-          facingMode: 'environment', // Use back camera on mobile
+          facingMode: 'environment',
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 480, ideal: 720, max: 1080 }
+        }
+      } : {
+        video: {
+          facingMode: 'environment',
           width: { ideal: 1280 },
           height: { ideal: 720 }
         }
-      });
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(videoConstraints);
 
       console.log('Camera stream obtained:', stream);
 
-      if (videoRef.current) {
+            if (videoRef.current) {
         videoRef.current.srcObject = stream;
 
         // Wait for video to be ready before showing camera
@@ -53,6 +70,22 @@ const Camera: React.FC<CameraProps> = ({ onKanjiDetected, onError, onLoading }) 
           console.error('Video error:', e);
           onError("Failed to load camera video. Please try again or use file upload.");
         };
+
+        // Add timeout for mobile devices
+        const timeout = setTimeout(() => {
+          if (!isCameraOpen) {
+            console.log('Camera timeout - trying to show anyway');
+            setIsCameraOpen(true);
+          }
+        }, 3000);
+
+        // Cleanup timeout when camera opens
+        const checkCamera = setInterval(() => {
+          if (isCameraOpen) {
+            clearTimeout(timeout);
+            clearInterval(checkCamera);
+          }
+        }, 100);
       }
     } catch (err) {
       console.error('Camera error:', err);
