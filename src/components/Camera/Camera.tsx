@@ -17,9 +17,19 @@ const Camera: React.FC<CameraProps> = ({ onKanjiDetected, onError, onLoading }) 
 
   const API_BASE_URL = "https://kanji-api-09daa91fbd9b.herokuapp.com/api/v1";
 
-    const startCamera = async () => {
+      const startCamera = async () => {
+    // On iOS, use the native camera app instead of web camera API
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+    if (isIOS) {
+      console.log('iOS detected - using native camera app');
+      // Trigger the file input to open native camera
+      fileInputRef.current?.click();
+      return;
+    }
+
     try {
-      console.log('Starting camera...');
+      console.log('Starting web camera...');
       console.log('User agent:', navigator.userAgent);
       console.log('HTTPS:', window.location.protocol === 'https:');
 
@@ -29,34 +39,17 @@ const Camera: React.FC<CameraProps> = ({ onKanjiDetected, onError, onLoading }) 
         return;
       }
 
-      // iOS Safari specific check
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
-
-      if (isIOS && isSafari) {
-        console.log('iOS Safari detected - using specific constraints');
-      }
-
-      // iOS Safari specific constraints
-      const videoConstraints = isIOS && isSafari ? {
-        video: {
-          facingMode: 'environment',
-          width: { min: 640, ideal: 1280, max: 1920 },
-          height: { min: 480, ideal: 720, max: 1080 }
-        }
-      } : {
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment',
           width: { ideal: 1280 },
           height: { ideal: 720 }
         }
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(videoConstraints);
+      });
 
       console.log('Camera stream obtained:', stream);
 
-            if (videoRef.current) {
+      if (videoRef.current) {
         videoRef.current.srcObject = stream;
 
         // Wait for video to be ready before showing camera
@@ -70,22 +63,6 @@ const Camera: React.FC<CameraProps> = ({ onKanjiDetected, onError, onLoading }) 
           console.error('Video error:', e);
           onError("Failed to load camera video. Please try again or use file upload.");
         };
-
-        // Add timeout for mobile devices
-        const timeout = setTimeout(() => {
-          if (!isCameraOpen) {
-            console.log('Camera timeout - trying to show anyway');
-            setIsCameraOpen(true);
-          }
-        }, 3000);
-
-        // Cleanup timeout when camera opens
-        const checkCamera = setInterval(() => {
-          if (isCameraOpen) {
-            clearTimeout(timeout);
-            clearInterval(checkCamera);
-          }
-        }, 100);
       }
     } catch (err) {
       console.error('Camera error:', err);
@@ -265,7 +242,7 @@ const Camera: React.FC<CameraProps> = ({ onKanjiDetected, onError, onLoading }) 
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              Open Camera
+              {/iPad|iPhone|iPod/.test(navigator.userAgent) ? 'Take Photo' : 'Open Camera'}
             </button>
 
             <button
